@@ -76,7 +76,7 @@ def process_attack(target, port, duration, chat_id, sent_msg_id, user_name, user
     
     # Smooth Progress Bar Loop
     while True:
-        time.sleep(5) # Exactly 5 seconds interval
+        time.sleep(1) # Exactly 5 seconds interval
         elapsed = int(time.time() - start_time)
         
         if elapsed >= duration:
