@@ -1,4 +1,3 @@
-telebot
+pyTelegramBotAPI
 Flask
 aiogram
-pip install -r requirement.txt
