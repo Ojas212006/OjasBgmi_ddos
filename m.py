@@ -102,7 +102,7 @@ def process_attack(target, port, duration, chat_id, sent_msg_id, user_name, user
         except Exception:
             pass # Ignore Telegram rate limits
             
-        time.sleep(3) # Faster and smoother updates
+        time.sleep(5) # Faster and smoother updates
         
     # Attack Finished - Free Up Server Slots
     with attack_lock:
